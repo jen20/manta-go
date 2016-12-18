@@ -349,3 +349,41 @@ func (c *Client) GetJobInput(input *GetJobInputInput) (*GetJobInputOutput, error
 
 	return output, nil
 }
+
+// GetJobFailuresInput represents parameters to a GetJobFailures operation.
+type GetJobFailuresInput struct {
+	JobID string
+}
+
+// GetJobFailuresOutput contains the outputs for a GetJobFailures operation. It is your
+// responsibility to ensure that the io.ReadCloser Items is closed.
+type GetJobFailuresOutput struct {
+	ResultSetSize uint64
+	Items         io.ReadCloser
+}
+
+// GetJobFailures returns the current "live" set of outputs from a job. Think of
+// this like `tail -f`. If error is nil (i.e. the operation is successful), it is
+// your responsibility to close the io.ReadCloser named Items in the output.
+func (c *Client) GetJobFailures(input *GetJobFailuresInput) (*GetJobFailuresOutput, error) {
+	path := fmt.Sprintf("/%s/jobs/%s/live/fail", c.accountName, input.JobID)
+
+	respBody, respHeader, err := c.executeRequest(http.MethodGet, path, nil, nil, nil)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return nil, errwrap.Wrapf("Error executing GetJobFailures request: {{err}}", err)
+	}
+
+	output := &GetJobFailuresOutput{
+		Items: respBody,
+	}
+
+	resultSetSize, err := strconv.ParseUint(respHeader.Get("Result-Set-Size"), 10, 64)
+	if err == nil {
+		output.ResultSetSize = resultSetSize
+	}
+
+	return output, nil
+}

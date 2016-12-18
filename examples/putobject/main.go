@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/joyent/manta-go"
-	"github.com/joyent/manta-go/authentication"
+	"github.com/jen20/manta-go"
+	"github.com/jen20/manta-go/authentication"
 )
 
 func main() {

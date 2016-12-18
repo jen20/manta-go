@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 
-	"github.com/joyent/manta-go"
-	"github.com/joyent/manta-go/authentication"
+	"github.com/jen20/manta-go"
+	"github.com/jen20/manta-go/authentication"
 )
 
 func main() {
@@ -17,9 +17,9 @@ func main() {
 	}
 
 	client, err := manta.NewClient(&manta.ClientOptions{
-		Endpoint: "https://us-east.manta.joyent.com/",
+		Endpoint:    "https://us-east.manta.joyent.com/",
 		AccountName: "tritongo",
-		Signers: []authentication.Signer{sshKeySigner},
+		Signers:     []authentication.Signer{sshKeySigner},
 	})
 	if err != nil {
 		log.Fatalf("NewClient: %s", err)
