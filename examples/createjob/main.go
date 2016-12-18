@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/joyent/manta-go"
 	"github.com/joyent/manta-go/authentication"
@@ -92,5 +94,21 @@ func main() {
 	fmt.Printf("Result set size: %d\n", jobs.ResultSetSize)
 	for _, j := range jobs.Jobs {
 		fmt.Printf(" - %s\n", j.ID)
+	}
+
+	time.Sleep(10 * time.Second)
+
+	gjoo, err := client.GetJobOutput(&manta.GetJobOutputInput{
+		JobID: job.JobID,
+	})
+	if err != nil {
+		log.Fatalf("GetJobOutput: %s", err)
+	}
+	defer gjoo.Items.Close()
+
+	fmt.Printf("Result set size: %d\n", gjoo.ResultSetSize)
+	outputsScanner := bufio.NewScanner(gjoo.Items)
+	for outputsScanner.Scan() {
+		fmt.Printf(" - %s\n", outputsScanner.Text())
 	}
 }
