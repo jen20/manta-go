@@ -96,6 +96,20 @@ func main() {
 		fmt.Printf(" - %s\n", j.ID)
 	}
 
+	gjio, err := client.GetJobInput(&manta.GetJobInputInput{
+		JobID: job.JobID,
+	})
+	if err != nil {
+		log.Fatalf("GetJobInput: %s", err)
+	}
+	defer gjio.Items.Close()
+
+	fmt.Printf("Result set size: %d\n", gjio.ResultSetSize)
+	outputsScanner := bufio.NewScanner(gjio.Items)
+	for outputsScanner.Scan() {
+		fmt.Printf(" - %s\n", outputsScanner.Text())
+	}
+
 	time.Sleep(10 * time.Second)
 
 	gjoo, err := client.GetJobOutput(&manta.GetJobOutputInput{
@@ -107,7 +121,7 @@ func main() {
 	defer gjoo.Items.Close()
 
 	fmt.Printf("Result set size: %d\n", gjoo.ResultSetSize)
-	outputsScanner := bufio.NewScanner(gjoo.Items)
+	outputsScanner = bufio.NewScanner(gjoo.Items)
 	for outputsScanner.Scan() {
 		fmt.Printf(" - %s\n", outputsScanner.Text())
 	}
