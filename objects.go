@@ -1,6 +1,7 @@
 package manta
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -117,6 +118,60 @@ func (c *Client) PutObjectMetadata(input *PutObjectMetadataInput) error {
 	}
 
 	respBody, _, err := c.executeRequest(http.MethodPut, path, query, headers, nil)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return errwrap.Wrapf("Error executing PutObjectMetadata request: {{err}}", err)
+	}
+
+	return nil
+}
+
+// PutObjectInput represents parameters to a PutObject operation.
+type PutObjectInput struct {
+	ObjectPath       string
+	DurabilityLevel  uint64
+	ContentType      string
+	ContentMD5       string
+	IfMatch          string
+	IfModifiedSince  *time.Time
+	ContentLength    uint64
+	MaxContentLength uint64
+	ObjectReader     io.ReadSeeker
+}
+
+func (c *Client) PutObject(input *PutObjectInput) error {
+	path := fmt.Sprintf("/%s/stor/%s", c.accountName, input.ObjectPath)
+
+	if input.MaxContentLength != 0 && input.ContentLength != 0 {
+		return errors.New("ContentLength and MaxContentLength may not both be set to non-zero values.")
+	}
+
+	headers := &http.Header{}
+	if input.DurabilityLevel != 0 {
+		headers.Set("Durability-Level", strconv.FormatUint(input.DurabilityLevel, 10))
+	}
+	if input.ContentType != "" {
+		headers.Set("Content-Type", input.ContentType)
+	}
+	if input.ContentMD5 != "" {
+		headers.Set("Content-MD$", input.ContentMD5)
+	}
+	if input.IfMatch != "" {
+		headers.Set("If-Match", input.IfMatch)
+	}
+	if input.IfModifiedSince != nil {
+		headers.Set("If-Modified-Since", input.IfModifiedSince.Format(time.RFC1123))
+	}
+	if input.ContentLength != 0 {
+		headers.Set("Content-Length", strconv.FormatUint(input.ContentLength, 10))
+	}
+	if input.MaxContentLength != 0 {
+		headers.Set("Max-Content-Length", strconv.FormatUint(input.MaxContentLength, 10))
+	}
+
+	respBody, _, err := c.executeRequestNoEncode(http.MethodPut, path, nil, headers, input.ObjectReader)
 	if respBody != nil {
 		defer respBody.Close()
 	}

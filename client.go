@@ -142,3 +142,52 @@ func (c *Client) executeRequest(method, path string, query *url.Values, headers 
 	}
 	return nil, nil, mantaError
 }
+
+func (c *Client) executeRequestNoEncode(method, path string, query *url.Values, headers *http.Header, body io.ReadSeeker) (io.ReadCloser, http.Header, error) {
+	req, err := retryablehttp.NewRequest(method, c.formatURL(path), body)
+	if err != nil {
+		return nil, nil, errwrap.Wrapf("Error constructing HTTP request: {{err}}", err)
+	}
+
+	if headers != nil {
+		for key, values := range *headers {
+			for _, value := range values {
+				req.Header.Set(key, value)
+			}
+		}
+	}
+
+	dateHeader := time.Now().UTC().Format(time.RFC1123)
+	req.Header.Set("date", dateHeader)
+
+	authHeader, err := c.authorizer[0].Sign(dateHeader)
+	if err != nil {
+		return nil, nil, errwrap.Wrapf("Error signing HTTP request: {{err}}", err)
+	}
+	req.Header.Set("Authorization", authHeader)
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", "manta-go client API")
+
+	if query != nil {
+		req.URL.RawQuery = query.Encode()
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, nil, errwrap.Wrapf("Error executing HTTP request: {{err}}", err)
+	}
+
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		return resp.Body, resp.Header, nil
+	}
+
+	mantaError := &MantaError{
+		StatusCode: resp.StatusCode,
+	}
+
+	errorDecoder := json.NewDecoder(resp.Body)
+	if err := errorDecoder.Decode(mantaError); err != nil {
+		return nil, nil, errwrap.Wrapf("Error decoding error response: {{err}}", err)
+	}
+	return nil, nil, mantaError
+}
