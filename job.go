@@ -130,7 +130,7 @@ func (c *Client) EndJobInput(input *EndJobInputInput) error {
 	return nil
 }
 
-// CancelJobInput represents parameters to a Cancel operation.
+// CancelJobInput represents parameters to a CancelJob operation.
 type CancelJobInput struct {
 	JobID string
 }
