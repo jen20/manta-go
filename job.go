@@ -79,3 +79,42 @@ type AddJobInputsInput struct {
 	JobID       string
 	ObjectPaths []string
 }
+
+// AddJobInputs submits inputs to an already created job.
+func (c *Client) AddJobInputs(input *AddJobInputsInput) error {
+	path := fmt.Sprintf("/%s/jobs/%s/live/in", c.accountName, input.JobID)
+	headers := &http.Header{}
+	headers.Set("Content-Type", "text/plain")
+
+	reader := strings.NewReader(strings.Join(input.ObjectPaths, "\n"))
+
+	respBody, _, err := c.executeRequestNoEncode(http.MethodPost, path, nil, headers, reader)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return errwrap.Wrapf("Error executing AddJobInputs request: {{err}}", err)
+	}
+
+	return nil
+}
+
+// EndJobInputInput represents parameters to a EndJobInput operation.
+type EndJobInputInput struct {
+	JobID string
+}
+
+// EndJobInput submits inputs to an already created job.
+func (c *Client) EndJobInput(input *EndJobInputInput) error {
+	path := fmt.Sprintf("/%s/jobs/%s/live/in/end", c.accountName, input.JobID)
+
+	respBody, _, err := c.executeRequestNoEncode(http.MethodPost, path, nil, nil, nil)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return errwrap.Wrapf("Error executing EndJobInput request: {{err}}", err)
+	}
+
+	return nil
+}
