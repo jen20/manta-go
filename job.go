@@ -73,3 +73,9 @@ func (c *Client) CreateJob(input *CreateJobInput) (*CreateJobOutput, error) {
 
 	return response, nil
 }
+
+// AddJobInputs represents parameters to a AddJobInputs operation.
+type AddJobInputsInput struct {
+	JobID       string
+	ObjectPaths []string
+}
