@@ -97,7 +97,7 @@ func (c *Client) executeRequest(method, path string, query *url.Values, headers 
 		return nil, nil, errwrap.Wrapf("Error constructing HTTP request: {{err}}", err)
 	}
 
-	if body != nil && headers == nil || headers.Get("Content-Type") == "" {
+	if body != nil && (headers == nil || headers.Get("Content-Type") == "") {
 		req.Header.Set("Content-Type", "application/json")
 	}
 	if headers != nil {
