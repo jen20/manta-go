@@ -7,10 +7,12 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/hashicorp/errwrap"
 	"golang.org/x/crypto/ssh"
-	"strings"
 )
 
 type PrivateKeySigner struct {
@@ -27,7 +29,7 @@ func NewPrivateKeySigner(keyFingerprint string, privateKeyMaterial []byte, accou
 
 	block, _ := pem.Decode(privateKeyMaterial)
 	if block == nil {
-		return nil, fmt.Errorf("Error PEM-decoding private key material: nil block received")
+		return nil, errors.New("Error PEM-decoding private key material: nil block received")
 	}
 
 	rsakey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
@@ -43,7 +45,7 @@ func NewPrivateKeySigner(keyFingerprint string, privateKeyMaterial []byte, accou
 	matchKeyFingerprint := formatPublicKeyFingerprint(sshPublicKey, false)
 	displayKeyFingerprint := formatPublicKeyFingerprint(sshPublicKey, true)
 	if matchKeyFingerprint != keyFingerprintMD5 {
-		return nil, fmt.Errorf("Private key file does not match public key fingerprint")
+		return nil, errors.New("Private key file does not match public key fingerprint")
 	}
 
 	return &PrivateKeySigner{
@@ -54,6 +56,14 @@ func NewPrivateKeySigner(keyFingerprint string, privateKeyMaterial []byte, accou
 		hashFunc:   crypto.SHA1,
 		privateKey: rsakey,
 	}, nil
+}
+
+func (s *PrivateKeySigner) KeyFingerprint() string {
+	return s.formattedKeyFingerprint
+}
+
+func (s *PrivateKeySigner) DefaultAlgorithm() string {
+	return "rsa-sha1"
 }
 
 func (s *PrivateKeySigner) Sign(dateHeader string) (string, error) {
@@ -70,4 +80,18 @@ func (s *PrivateKeySigner) Sign(dateHeader string) (string, error) {
 	signedBase64 := base64.StdEncoding.EncodeToString(signed)
 
 	return fmt.Sprintf(authorizationHeaderFormat, s.formattedKeyFingerprint, "rsa-sha1", headerName, signedBase64), nil
+}
+
+func (s *PrivateKeySigner) SignRaw(toSign string) (string, string, error) {
+	hash := s.hashFunc.New()
+	hash.Write([]byte(toSign))
+	digest := hash.Sum(nil)
+
+	signed, err := rsa.SignPKCS1v15(rand.Reader, s.privateKey, s.hashFunc, digest)
+	if err != nil {
+		return "", "", errwrap.Wrapf("Error signing string: {{err}}", err)
+	}
+	signedBase64 := base64.StdEncoding.EncodeToString(signed)
+
+	return signedBase64, "rsa-sha1", nil
 }

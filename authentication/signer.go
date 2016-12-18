@@ -4,4 +4,7 @@ const authorizationHeaderFormat = `Signature keyId="%s",algorithm="%s",headers="
 
 type Signer interface {
 	Sign(dateHeader string) (string, error)
+	SignRaw(toSign string) (string, string, error)
+	KeyFingerprint() string
+	DefaultAlgorithm() string
 }
