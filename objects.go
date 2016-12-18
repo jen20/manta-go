@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -83,6 +84,44 @@ func (c *Client) DeleteObject(input *DeleteObjectInput) error {
 	}
 	if err != nil {
 		return errwrap.Wrapf("Error executing DeleteObject request: {{err}}", err)
+	}
+
+	return nil
+}
+
+// PutObjectMetadataInput represents parameters to a PutObjectMetadata operation.
+type PutObjectMetadataInput struct {
+	ObjectPath  string
+	ContentType string
+	Metadata    map[string]string
+}
+
+// PutObjectMetadata allows you to overwrite the HTTP headers for an already
+// existing object, without changing the data. Note this is an idempotent "replace"
+// operation, so you must specify the complete set of HTTP headers you want
+// stored on each request.
+//
+// You cannot change "critical" headers:
+// 	- Content-Length
+//	- Content-MD5
+//	- Durability-Level
+func (c *Client) PutObjectMetadata(input *PutObjectMetadataInput) error {
+	path := fmt.Sprintf("/%s/stor/%s", c.accountName, input.ObjectPath)
+	query := &url.Values{}
+	query.Set("metadata", "true")
+
+	headers := &http.Header{}
+	headers.Set("Content-Type", input.ContentType)
+	for key, value := range input.Metadata {
+		headers.Set(key, value)
+	}
+
+	respBody, _, err := c.executeRequest(http.MethodPut, path, query, headers, nil)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return errwrap.Wrapf("Error executing PutObjectMetadata request: {{err}}", err)
 	}
 
 	return nil
