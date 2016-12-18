@@ -118,3 +118,30 @@ func (c *Client) EndJobInput(input *EndJobInputInput) error {
 
 	return nil
 }
+
+// CancelJobInput represents parameters to a Cancel operation.
+type CancelJobInput struct {
+	JobID string
+}
+
+// CancelJob cancels a job from doing any further work. Cancellation
+// is asynchronous and "best effort"; there is no guarantee the job
+// will actually stop. For example, short jobs where input is already
+// closed will likely still run to completion.
+//
+// This is however useful when:
+// 	- input is still open
+// 	- you have a long-running job
+func (c *Client) CancelJob(input *CancelJobInput) error {
+	path := fmt.Sprintf("/%s/jobs/%s/live/cancel", c.accountName, input.JobID)
+
+	respBody, _, err := c.executeRequestNoEncode(http.MethodPost, path, nil, nil, nil)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return errwrap.Wrapf("Error executing CancelJob request: {{err}}", err)
+	}
+
+	return nil
+}
