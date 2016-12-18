@@ -1,10 +1,15 @@
 package manta
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/hashicorp/errwrap"
+	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // JobPhase represents the specification for a map or reduce phase of a Manta
@@ -37,6 +42,12 @@ type JobPhase struct {
 	// Disk is the amount of disk space in GB to be allocated to the compute
 	// zone. Valid values are 2, 4, 8, 16, 32, 64, 128, 256, 512 or 1024.
 	Disk uint64 `json:"disk,omitempty"`
+}
+
+// JobSummary represents the summary of a compute job in Manta.
+type JobSummary struct {
+	ModifiedTime time.Time `json:"mtime"`
+	ID           string    `json:"name"`
 }
 
 // CreateJobInput represents parameters to a CreateJob operation.
@@ -144,4 +155,63 @@ func (c *Client) CancelJob(input *CancelJobInput) error {
 	}
 
 	return nil
+}
+
+// ListJobsInput represents parameters to a ListJobs operation.
+type ListJobsInput struct {
+	RunningOnly bool
+	Limit       uint64
+	Marker      string
+}
+
+// ListJobsOutput contains the outputs of a ListJobs operation.
+type ListJobsOutput struct {
+	Jobs          []*JobSummary
+	ResultSetSize uint64
+}
+
+func (c *Client) ListJobs(input *ListJobsInput) (*ListJobsOutput, error) {
+	path := fmt.Sprintf("/%s/jobs", c.accountName)
+	query := &url.Values{}
+	if input.RunningOnly {
+		query.Set("state", "running")
+	}
+	if input.Limit != 0 {
+		query.Set("limit", strconv.FormatUint(input.Limit, 10))
+	}
+	if input.Marker != "" {
+		query.Set("manta_path", input.Marker)
+	}
+
+	respBody, respHeader, err := c.executeRequest(http.MethodGet, path, query, nil, nil)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return nil, errwrap.Wrapf("Error executing ListJobs request: {{err}}", err)
+	}
+
+	var results []*JobSummary
+	for {
+		current := &JobSummary{}
+		decoder := json.NewDecoder(respBody)
+		if err = decoder.Decode(&current); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, errwrap.Wrapf("Error decoding ListJobs response: {{err}}", err)
+		}
+		results = append(results, current)
+	}
+
+	output := &ListJobsOutput{
+		Jobs: results,
+	}
+
+	resultSetSize, err := strconv.ParseUint(respHeader.Get("Result-Set-Size"), 10, 64)
+	if err == nil {
+		output.ResultSetSize = resultSetSize
+	}
+
+	return output, nil
 }

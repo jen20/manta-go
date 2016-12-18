@@ -74,4 +74,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("EndJobInput: %s", err)
 	}
+
+	jobs, err := client.ListJobs(&manta.ListJobsInput{})
+	if err != nil {
+		log.Fatalf("ListJobs: %s", err)
+	}
+
+	fmt.Printf("Result set size: %d\n", jobs.ResultSetSize)
+	for _, j := range jobs.Jobs {
+		fmt.Printf(" - %s\n", j.ID)
+	}
 }
