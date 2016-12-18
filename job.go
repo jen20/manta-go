@@ -3,13 +3,14 @@ package manta
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/errwrap"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/hashicorp/errwrap"
 )
 
 // JobPhase represents the specification for a map or reduce phase of a Manta
@@ -48,6 +49,29 @@ type JobPhase struct {
 type JobSummary struct {
 	ModifiedTime time.Time `json:"mtime"`
 	ID           string    `json:"name"`
+}
+
+// Job represents a compute job in Manta.
+type Job struct {
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Phases      []*JobPhase `json:"phases"`
+	State       string      `json:"state"`
+	Cancelled   bool        `json:"cancelled"`
+	InputDone   bool        `json:"inputDone"`
+	CreatedTime time.Time   `json:"timeCreated"`
+	DoneTime    time.Time   `json:"timeDone"`
+	Transient   bool        `json:"transient"`
+	Stats       *JobStats   `json:"stats"`
+}
+
+// JobStats represents statistics for a compute job in Manta.
+type JobStats struct {
+	Errors    uint64 `json:"errors"`
+	Outputs   uint64 `json:"outputs"`
+	Retries   uint64 `json:"retries"`
+	Tasks     uint64 `json:"tasks"`
+	TasksDone uint64 `json:"tasksDone"`
 }
 
 // CreateJobInput represents parameters to a CreateJob operation.
@@ -170,6 +194,7 @@ type ListJobsOutput struct {
 	ResultSetSize uint64
 }
 
+// ListJobs returns the list of jobs you currently have.
 func (c *Client) ListJobs(input *ListJobsInput) (*ListJobsOutput, error) {
 	path := fmt.Sprintf("/%s/jobs", c.accountName)
 	query := &url.Values{}
@@ -214,4 +239,37 @@ func (c *Client) ListJobs(input *ListJobsInput) (*ListJobsOutput, error) {
 	}
 
 	return output, nil
+}
+
+// GetJobInput represents parameters to a GetJob operation.
+type GetJobInput struct {
+	JobID string
+}
+
+// GetJobOutput contains the outputs of a GetJob operation.
+type GetJobOutput struct {
+	Job *Job
+}
+
+// GetJob returns the list of jobs you currently have.
+func (c *Client) GetJob(input *GetJobInput) (*GetJobOutput, error) {
+	path := fmt.Sprintf("/%s/jobs/%s/live/status", c.accountName, input.JobID)
+
+	respBody, _, err := c.executeRequest(http.MethodGet, path, nil, nil, nil)
+	if respBody != nil {
+		defer respBody.Close()
+	}
+	if err != nil {
+		return nil, errwrap.Wrapf("Error executing GetJob request: {{err}}", err)
+	}
+
+	job := &Job{}
+	decoder := json.NewDecoder(respBody)
+	if err = decoder.Decode(&job); err != nil {
+		return nil, errwrap.Wrapf("Error decoding GetJob response: {{err}}", err)
+	}
+
+	return &GetJobOutput{
+		Job: job,
+	}, nil
 }

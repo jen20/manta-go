@@ -68,6 +68,15 @@ func main() {
 		log.Fatalf("AddJobInputs: %s", err)
 	}
 
+	gjo, err := client.GetJob(&manta.GetJobInput{
+		JobID: job.JobID,
+	})
+	if err != nil {
+		log.Fatalf("GetJob: %s", err)
+	}
+
+	fmt.Printf("%+v", gjo.Job)
+
 	err = client.EndJobInput(&manta.EndJobInputInput{
 		JobID: job.JobID,
 	})
