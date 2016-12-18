@@ -13,6 +13,11 @@ import (
 	"github.com/hashicorp/errwrap"
 )
 
+const (
+	JobStateDone    = "done"
+	JobStateRunning = "running"
+)
+
 // JobPhase represents the specification for a map or reduce phase of a Manta
 // job.
 type JobPhase struct {
